@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>左右日语 · 划词词典</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <div class="mark">あ</div>
+        <div class="brand-text">
+          <h1>左右日语</h1>
+          <p>划词词典</p>
+        </div>
+      </div>
+      <label class="switch" title="开启 / 关闭划词">
+        <input type="checkbox" id="enabled">
+        <span class="track"><span class="knob"></span></span>
+      </label>
+    </header>
+
+    <section class="look">
+      <div class="dirbar">
+        <div class="seg" id="dir">
+          <button data-dir="ja2zh" type="button">日 → 中</button>
+          <button data-dir="zh2ja" type="button">中 → 日</button>
+        </div>
+        <span class="dirnote" id="dirnote">查日语词或整句</span>
+      </div>
+      <div class="lookbar">
+        <input id="q" type="text" placeholder="粘贴日语查词，回车" autocomplete="off" spellcheck="false">
+        <button id="qbtn" type="button">查</button>
+      </div>
+      <div id="qres" class="qres" hidden></div>
+      <p id="qhint" class="qhint"></p>
+    </section>
+
+    <section class="panel">
+      <div class="row">
+        <div class="lab">
+          <span>双击查词</span>
+          <em>不选中，双击单词直接查</em>
+        </div>
+        <label class="switch small">
+          <input type="checkbox" id="dblclick">
+          <span class="track"><span class="knob"></span></span>
+        </label>
+      </div>
+      <div class="row">
+        <div class="lab">
+          <span>自动发音</span>
+          <em>查到词后自动朗读</em>
+        </div>
+        <label class="switch small">
+          <input type="checkbox" id="autospeak">
+          <span class="track"><span class="knob"></span></span>
+        </label>
+      </div>
+      <div class="row">
+        <div class="lab"><span>卡片外观</span></div>
+        <div class="seg" id="theme">
+          <button data-theme="light" type="button">浅色</button>
+          <button data-theme="dark" type="button">深色</button>
+          <button data-theme="auto" type="button">跟随系统</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="vhead">
+      <h2>生词本 <span id="count">0</span></h2>
+      <div class="vactions">
+        <button id="openStudy" class="mini go" type="button">词库 / 抽测 →</button>
+        <button id="export" class="mini" type="button">导出</button>
+        <button id="clear" class="mini danger" type="button">清空</button>
+      </div>
+    </section>
+
+    <section class="vlist" id="vlist">
+      <div class="vempty">还没有收录生词。<br>在网页上选中日语，点卡片里的「生词本」。</div>
+    </section>
+
+    <footer class="foot">
+      <kbd>Alt</kbd><kbd>J</kbd> 开关
+      <kbd>Alt</kbd><kbd>K</kbd> 查词
+      <span class="grow"></span>
+      <span class="hint">Jisho · MyMemory</span>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

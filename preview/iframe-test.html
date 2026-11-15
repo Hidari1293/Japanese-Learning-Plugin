@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>窄 iframe 内的卡片</title>
+<style>
+  body { font-family: sans-serif; padding: 14px; background: #f6f4ef; }
+  h3 { font-size: 13px; color: #666; margin: 0 0 8px; }
+  iframe { width: 280px; height: 240px; border: 1px solid #ccc; background: #fff; }
+  iframe.wide { width: 520px; height: 240px; }
+  .row { display: flex; gap: 16px; margin-bottom: 14px; }
+  .cap { font: 11px monospace; color: #999; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<h3>同一个 iframe 页面，两种容器宽度</h3>
+<div class="row">
+  <div>
+    <div class="cap">窄：280px</div>
+    <iframe src="iframe-inner.html"></iframe>
+  </div>
+  <div>
+    <div class="cap">宽：520px</div>
+    <iframe class="wide" src="iframe-inner.html"></iframe>
+  </div>
+</div>
+</body>
+</html>

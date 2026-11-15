@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>变形还原 / 近似结果</title>
+<style>
+  body { margin: 0; padding: 24px; background: #faf8f4; font-family: "Yu Mincho", serif; }
+  .article { max-width: 700px; font-size: 15px; line-height: 2; color: #333; }
+  .target { background: #ffe9a8; padding: 1px 2px; }
+</style>
+</head>
+<body>
+<div class="article">
+  男は三年間、警察に<span class="target" id="t">追われる</span>生活を送っていた。
+</div>
+
+<script>
+const STATE = new URLSearchParams(location.search).get('s') || 'restored';
+
+const D = {
+  restored: {
+    ok: true, query: '追われる', matched: '追う', reading: 'おう',
+    pos: '五段动词 · 他动词', jlpt: 'N3', common: true,
+    cn: '追逐；追赶；追求', en: ['to chase', 'to run after'],
+    cnFrom: 'en', approx: false, inLocal: false
+  },
+  approx: {
+    ok: true, query: '追われる', matched: '追われる身', reading: 'おわれるみ',
+    pos: '惯用表达', jlpt: '', common: false,
+    cn: '通缉犯；逃犯；被追捕者', en: ['wanted person', 'fugitive'],
+    cnFrom: 'en', approx: true, inLocal: false
+  }
+};
+
+window.chrome = {
+  runtime: {
+    lastError: null,
+    sendMessage: (m, cb) => setTimeout(() => cb(D[STATE]), 20),
+    onMessage: { addListener() {} }
+  },
+  storage: {
+    local: { get: () => Promise.resolve({}), set: () => Promise.resolve() },
+    onChanged: { addListener() {} }
+  }
+};
+</script>
+<script src="../dict-local.js"></script>
+<script src="../content.js"></script>
+<script>
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const n = document.getElementById('t');
+    const r = document.createRange();
+    r.selectNodeContents(n);
+    const s = getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+    const b = n.getBoundingClientRect();
+    document.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true, button: 0, clientX: b.left + 4, clientY: b.top + 4
+    }));
+  }, 250);
+
+  setTimeout(() => {
+    const h = document.querySelector('[data-jp-lookup]');
+    const c = h && h.shadowRoot && h.shadowRoot.querySelector('.card');
+    if (!c) { document.title = 'NOCARD'; return; }
+    const g = (sel) => { const e = c.querySelector(sel); return e ? e.textContent.trim() : '-'; };
+    document.title = [
+      'word=' + g('.word'),
+      'tags=' + Array.from(c.querySelectorAll('.tag')).map(t => t.textContent.trim()).join('/'),
+      'approxTip=' + g('.approx'),
+      'cn=' + g('.cn')
+    ].join(' || ');
+  }, 1100);
+});
+</script>
+</body>
+</html>

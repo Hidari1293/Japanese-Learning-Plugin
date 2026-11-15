@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; padding: 8px; font-family: "Yu Mincho", serif; background: #fff; }
+  p { font-size: 10px; margin: 0 0 6px; color: #444; }
+  .big { font-size: 13px; color: #222; }
+</style>
+</head>
+<body>
+<p id="t">懐かしい景色を見ていた。静かな庭に赤い葉が落ちていた。</p>
+<p class="big">この一文を選んでカードの位置を確認する</p>
+
+<script>
+window.chrome = {
+  runtime: {
+    lastError: null,
+    sendMessage: (msg, cb) => setTimeout(() => cb({
+      ok: true, query: msg.word || msg.text, matched: msg.word || '静かな庭',
+      reading: 'なつかしい', pos: 'イ形容词', jlpt: 'N3',
+      cn: '令人怀念的；怀旧的', en: ['nostalgic'], inLocal: false, cnFrom: 'en'
+    }), 30),
+    onMessage: { addListener() {} }
+  },
+  storage: {
+    local: { get: () => Promise.resolve({}), set: () => Promise.resolve() },
+    onChanged: { addListener() {} }
+  }
+};
+</script>
+<script src="../dict-local.js"></script>
+<script src="../content.js"></script>
+<script>
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const n = document.getElementById('t');
+    const r = document.createRange();
+    r.selectNodeContents(n);
+    const s = getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+    const b = n.getBoundingClientRect();
+    document.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true, button: 0, clientX: b.left + 5, clientY: b.top + 4
+    }));
+  }, 250);
+
+  setTimeout(() => {
+    const h = document.querySelector('[data-jp-lookup]');
+    const c = h && h.shadowRoot && h.shadowRoot.querySelector('.card');
+    const m = document.createElement('div');
+    m.style.cssText = 'position:fixed;left:0;bottom:0;font:10px monospace;background:#000;color:#0f0;padding:3px;z-index:99999';
+    if (!c) {
+      m.textContent = 'NO CARD';
+    } else {
+      const r = c.getBoundingClientRect();
+      m.textContent = 'vh=' + innerHeight + ' vw=' + innerWidth +
+        ' card=' + Math.round(r.width) + 'x' + Math.round(r.height) +
+        ' top=' + Math.round(r.top) + ' maxH=' + getComputedStyle(c).maxHeight;
+    }
+    document.body.appendChild(m);
+  }, 1400);
+});
+</script>
+</body>
+</html>

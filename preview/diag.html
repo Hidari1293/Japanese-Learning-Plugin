@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>划词诊断</title>
+<style>
+  body { font-family: "Yu Mincho", serif; padding: 20px; }
+  .row { margin: 14px 0; padding: 8px; border: 1px dashed #ccc; }
+  .lbl { font: 12px monospace; color: #888; display: block; margin-bottom: 4px; }
+  .tiny { font-size: 10px; }
+  .tiny9 { font-size: 9px; }
+  .sp { letter-spacing: 0.08em; }
+  .muted { color: #aaa; font-size: 10.5px; }
+  #out { white-space: pre-wrap; font: 12px/1.7 monospace; background: #111; color: #6f6; padding: 10px; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<div class="row">
+  <span class="lbl">A 正常字号 16px</span>
+  <span id="a">懐かしい景色</span>
+</div>
+
+<div class="row">
+  <span class="lbl">B 小字 10px</span>
+  <span class="tiny" id="b">懐かしい景色</span>
+</div>
+
+<div class="row">
+  <span class="lbl">C 极小字 9px</span>
+  <span class="tiny9" id="c">懐かしい景色</span>
+</div>
+
+<div class="row">
+  <span class="lbl">D 小字+字间距</span>
+  <span class="tiny sp" id="d">懐かしい景色</span>
+</div>
+
+<div class="row">
+  <span class="lbl">E 小字灰色批注（常见于文章脚注）</span>
+  <span class="muted" id="e">懐かしい景色</span>
+</div>
+
+<div class="row">
+  <span class="lbl">F ruby 注音</span>
+  <ruby>懐<rp>(</rp><rt class="tiny">なつ</rt><rp>)</rp></ruby>かしい
+</div>
+
+<div class="row">
+  <span class="lbl">G 单字</span>
+  <span id="g" class="tiny">猫</span>
+</div>
+
+<div class="row">
+  <span class="lbl">H 假名助词</span>
+  <span id="h" class="tiny">は</span>
+</div>
+
+<div class="row">
+  <span class="lbl">I iframe 内小字</span>
+  <iframe id="fr" style="width:320px;height:60px;border:1px solid #ddd"></iframe>
+</div>
+
+<div id="out">等待…</div>
+
+<script>
+window.chrome = {
+  runtime: {
+    lastError: null,
+    sendMessage: (msg, cb) => setTimeout(() => cb({
+      ok: true, query: msg.word || msg.text, matched: msg.word || msg.text,
+      reading: 'なつかしい', pos: 'イ形容词', jlpt: 'N3',
+      cn: '令人怀念的', en: ['nostalgic'], inLocal: false, cnFrom: 'en'
+    }), 20),
+    onMessage: { addListener() {} }
+  },
+  storage: {
+    local: { get: () => Promise.resolve({}), set: () => Promise.resolve() },
+    onChanged: { addListener() {} }
+  }
+};
+
+// iframe 里放一行小字
+const fr = document.getElementById('fr');
+fr.srcdoc = '<body style="margin:4px;font-family:serif"><span style="font-size:10px" id="fi">懐かしい景色</span></body>';
+</script>
+
+<script src="../dict-local.js"></script>
+<script src="../content.js"></script>
+
+<script>
+const out = document.getElementById('out');
+const log = [];
+
+function cardShown() {
+  const h = document.querySelector('[data-jp-lookup]');
+  if (!h || !h.shadowRoot) return null;
+  const c = h.shadowRoot.querySelector('.card');
+  if (!c) return null;
+  const cs = getComputedStyle(c);
+  return {
+    visible: c.style.visibility !== 'hidden' && cs.display !== 'none',
+    w: Math.round(c.getBoundingClientRect().width),
+    h: Math.round(c.getBoundingClientRect().height),
+    head: (c.querySelector('.word, .sent-src, .empty strong') || {}).textContent || '(空)'
+  };
+}
+
+function clearCard() {
+  const h = document.querySelector('[data-jp-lookup]');
+  if (h) h.remove();
+  window.__JP_LOOKUP_READY__ = true;
+}
+
+// 模拟「用鼠标划中某个元素内的文字」
+function simulate(el) {
+  return new Promise((resolve) => {
+    clearCard();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const r = el.getBoundingClientRect();
+    document.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true, cancelable: true, button: 0,
+      clientX: r.left + Math.min(4, r.width / 2),
+      clientY: r.top + Math.min(4, r.height / 2)
+    }));
+    // 双击路径
+    document.dispatchEvent(new MouseEvent('dblclick', {
+      bubbles: true, cancelable: true, button: 0,
+      clientX: r.left + 2, clientY: r.top + 2
+    }));
+    setTimeout(() => {
+      const c = cardShown();
+      sel.removeAllRanges();
+      resolve(c ? `OK  ${c.w}x${c.h}  「${c.head}」` : 'NO-CARD');
+    }, 450);
+  });
+}
+
+window.addEventListener('load', async () => {
+  const cases = [
+    ['A 正常16px', document.getElementById('a')],
+    ['B 小字10px', document.getElementById('b')],
+    ['C 极小9px', document.getElementById('c')],
+    ['D 小字+字距', document.getElementById('d')],
+    ['E 灰小字批注', document.getElementById('e')],
+    ['G 单字「猫」', document.getElementById('g')],
+    ['H 助词「は」', document.getElementById('h')]
+  ];
+
+  for (const [name, node] of cases) {
+    const t = node.textContent;
+    const cs = getComputedStyle(node);
+    const fs = cs.fontSize, lh = cs.lineHeight, va = cs.visibility, op = cs.opacity;
+    const res = await simulate(node);
+    log.push(`${name.padEnd(14)} 字号=${fs.padEnd(7)} ${res}`);
+  }
+
+  // ruby 场景单独测
+  try {
+    const rt = document.querySelector('ruby rt');
+    const range = document.createRange();
+    range.selectNodeContents(rt);
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+    const txt = sel.toString();
+    log.push(`F ruby 注音   选区文本="${txt}" ${txt.trim() ? '有文本' : '选区为空→不会触发'}`);
+    sel.removeAllRanges();
+  } catch (e) {
+    log.push('F ruby 注音   ERR ' + e.message);
+  }
+
+  // iframe 场景
+  await new Promise(r => setTimeout(r, 500));
+  const doc = fr.contentDocument;
+  const hasHost = !!(doc && doc.querySelector('[data-jp-lookup]'));
+  log.push(`I iframe       注入=${hasHost ? '是' : '否（all_frames 未开启）'}`);
+
+  out.textContent = log.join('\n');
+  document.title = 'DIAG:' + log.map(l => l.includes('OK') ? '1' : '0').join('');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+
+# 打包产物与签名私钥（千万别提交）
+*.crx
+*.zip
+*.pem
+*.key
+
+# 依赖（本项目没有构建步骤，正常不会出现）
+node_modules/
+
+# 临时截图 / 调试产物
+.shot/

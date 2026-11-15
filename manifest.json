@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "左右日语 · 划词词典",
+  "version": "1.5.0",
+  "description": "网页上选中日语，立刻查看读音、词性、中文释义与整句翻译，一键收入生词本；内置 N3 词库，支持翻卡片与中→日 / 日→中 / 日→假名三种选择题抽测，按错题与题型权重复习。",
+  "permissions": [
+    "storage",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "https://jisho.org/*",
+    "https://api.mymemory.translated.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "dict-local.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "左右日语 · 划词词典",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "toggle-enabled": {
+      "suggested_key": {
+        "default": "Alt+J"
+      },
+      "description": "临时开/关划词查询"
+    },
+    "open-lookup": {
+      "suggested_key": {
+        "default": "Alt+K"
+      },
+      "description": "打开查词框（PDF 等无法划词的页面）"
+    }
+  }
+}
