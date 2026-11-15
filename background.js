@@ -306,7 +306,11 @@ function pickJishoEntry(list, query) {
 }
 
 async function lookupWord(rawWord) {
-  const word = String(rawWord || '').trim();
+  // 从 PDF / 网页复制来的文本常带零宽字符与不换行空格，会让接口查不到任何东西
+  const word = String(rawWord || '')
+    .replace(/[\u200b-\u200f\u2028\u2029\ufeff\u00a0]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!word) return { ok: false, error: 'empty' };
 
   const cacheKey = 'w:' + word;
@@ -317,6 +321,7 @@ async function lookupWord(rawWord) {
 
   let jisho = null;
   let jishoFailed = false;
+  let jishoError = '';
   let approx = false;
   try {
     const list = await jishoSearch(word);
@@ -347,6 +352,7 @@ async function lookupWord(rawWord) {
     }
   } catch (e) {
     jishoFailed = true;
+    jishoError = (e && e.message) || 'jisho';
   }
 
   // 中文：本地词库 → 翻译 Jisho 的英文释义（比直译单词准确得多）→ 兜底直译原词
@@ -388,7 +394,12 @@ async function lookupWord(rawWord) {
   };
 
   if (!result.cn && !result.reading && !result.pos && !(result.en && result.en.length)) {
-    return { ok: false, error: jishoFailed ? 'network' : 'notfound', query: word };
+    return {
+      ok: false,
+      error: jishoFailed ? 'network' : 'notfound',
+      detail: jishoError,          // 例如 jisho-403，用来区分「被接口拒绝」和「真没这个词」
+      query: word
+    };
   }
 
   await cacheSet(cacheKey, result);
@@ -466,8 +477,63 @@ async function translateSentence(rawText, direction) {
 
 /* ---------------- 消息路由 ---------------- */
 
+/* ---------------- 自检 ---------------- */
+
+/* 打一次远端接口，把状态码与解析结果原样报出来。
+   扩展内部的请求和浏览器地址栏的请求走的不完全是同一条路（Origin / Sec-Fetch 头不同），
+   所以排查「划词查不到」时以这里的返回为准。 */
+async function probeApis() {
+  const out = { ok: true };
+
+  const t0 = Date.now();
+  try {
+    const r = await fetch(JISHO_API + encodeURIComponent('猫'), { headers: { Accept: 'application/json' } });
+    const txt = await r.text();
+    let n = -1;
+    try {
+      const j = JSON.parse(txt);
+      n = Array.isArray(j.data) ? j.data.length : -1;
+    } catch (e) { n = -1; }
+    out.jisho = 'HTTP ' + r.status + (n >= 0 ? ' · ' + n + ' 条' : ' · 不是 JSON');
+  } catch (e) {
+    out.jisho = '请求失败：' + ((e && e.message) || e);
+  }
+
+  try {
+    const r = await fetch(MYMEMORY_API + '?q=' + encodeURIComponent('猫') + '&langpair=ja|zh-CN');
+    const txt = await r.text();
+    let t = '';
+    try {
+      t = ((JSON.parse(txt) || {}).responseData || {}).translatedText || '';
+    } catch (e) { t = ''; }
+    out.mymemory = 'HTTP ' + r.status + (t ? ' · ' + t.slice(0, 14) : ' · 没有译文');
+  } catch (e) {
+    out.mymemory = '请求失败：' + ((e && e.message) || e);
+  }
+
+  out.ms = Date.now() - t0;
+  return out;
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || !msg.type) return;
+
+  // 自检用：确认后台活着、词库装进来了
+  if (msg.type === 'ping') {
+    sendResponse({
+      ok: true,
+      version: chrome.runtime.getManifest().version,
+      dictSize: Object.keys(LOCAL).length,
+      cached: memCache ? Object.keys(memCache).length : 0
+    });
+    return;
+  }
+
+  // 自检用：直接打一次远端接口，把状态码原样返回
+  if (msg.type === 'probe') {
+    probeApis().then(sendResponse).catch(err => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
 
   if (msg.type === 'lookup') {
     lookupWord(msg.word)
