@@ -35,6 +35,10 @@ if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
               pos: 'イ形容词', jlpt: 'N3', cn: '令人怀念的；怀旧的',
               en: ['dear (old)', 'fondly remembered'], cnFrom: 'en'
             }
+          : msg.type === 'ping'
+          ? { ok: true, version: '1.5.1', dictSize: 564, cached: 21 }
+          : msg.type === 'probe'
+          ? { ok: true, jisho: 'HTTP 200 · 10 条', mymemory: 'HTTP 200 · 猫', ms: 1430 }
           : msg.type === 'translate'
           ? {
               ok: true, text: msg.text,
@@ -264,11 +268,12 @@ function askBackground(msg) {
   return new Promise((resolve) => {
     try {
       chrome.runtime.sendMessage(msg, (r) => {
-        void chrome.runtime.lastError;
-        resolve(r || null);
+        // lastError 要留着：它区分「后台没起来」和「后台说没这个词」
+        if (chrome.runtime.lastError) { resolve({ ok: false, error: 'runtime' }); return; }
+        resolve(r || { ok: false, error: 'empty' });
       });
     } catch (e) {
-      resolve(null);
+      resolve({ ok: false, error: 'closed' });
     }
   });
 }
@@ -356,16 +361,112 @@ function renderQResult(entry) {
   box.appendChild(act);
 }
 
-function renderQError(text, reason) {
+function renderQError(text, reason, detail) {
   const box = $('qres');
   box.textContent = '';
   box.hidden = false;
   const p = document.createElement('div');
   p.className = 'qerr';
-  p.textContent = reason === 'network'
-    ? '网络查询失败，检查一下网络连接。'
-    : `没有查到「${text}」。可能是专有名词，或换一个更短的词试试。`;
+  const off = reason === 'runtime' || reason === 'closed' || reason === 'empty';
+  if (reason === 'network') {
+    p.textContent = '查询接口没有响应' + (detail ? `（${detail}）` : '') +
+      '。点右下角「自检」看两个接口各自的返回。';
+  } else if (off) {
+    p.textContent = '扩展后台没有响应，查询根本没发出去。到 chrome://extensions 点这个扩展的刷新按钮，再重开面板。';
+  } else {
+    p.textContent = `没有查到「${text}」。可能是专有名词，或换一个更短的词试试。`;
+  }
   box.appendChild(p);
+}
+
+/* ---------------- 自检 ---------------- */
+
+async function runDiag() {
+  const box = $('qres');
+  box.hidden = false;
+  box.textContent = '';
+  const loading = document.createElement('div');
+  loading.className = 'dtitle';
+  loading.textContent = '正在自检…';
+  box.appendChild(loading);
+
+  const rows = [];
+  const push = (name, value, good) => rows.push({ name, value, good });
+
+  // ① 后台：消息能不能送到 service worker
+  const ping = await askBackground({ type: 'ping' });
+  const bgAlive = !!(ping && ping.ok);
+  push('扩展后台',
+    bgAlive ? `正常 · v${ping.version} · 本地词库 ${ping.dictSize} 词` : '没有响应（service worker 没启动）',
+    bgAlive);
+
+  // ② 当前页面的划词脚本
+  if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+    let tab = null;
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      tab = tabs && tabs[0];
+    } catch (e) { tab = null; }
+
+    if (tab && tab.id != null) {
+      const alive = await new Promise((resolve) => {
+        try {
+          chrome.tabs.sendMessage(tab.id, { type: 'ping' }, (r) => {
+            void chrome.runtime.lastError;
+            resolve(!!(r && r.ok));
+          });
+        } catch (e) { resolve(false); }
+      });
+      push('当前页面', alive ? '划词脚本在运行' : '没有划词脚本（PDF / 内置页面 / 装好后没刷新）', alive);
+    }
+  } else {
+    push('当前页面', '预览环境，跳过', true);
+  }
+
+  // ③ 两个远端接口：由后台代发，走的是真实查询同一条路
+  if (bgAlive) {
+    const probe = await askBackground({ type: 'probe' });
+    if (probe && probe.ok) {
+      push('Jisho', probe.jisho || '—', /HTTP 200/.test(probe.jisho || ''));
+      push('MyMemory', probe.mymemory || '—', /HTTP 200/.test(probe.mymemory || ''));
+    } else {
+      push('接口测试', (probe && probe.error) || '失败', false);
+    }
+  } else {
+    push('接口测试', '后台没起来，测不了', false);
+  }
+
+  box.textContent = '';
+  const bad = rows.filter(r => !r.good).length;
+  const head = document.createElement('div');
+  head.className = 'dtitle';
+  head.textContent = bad ? `自检：${bad} 项异常` : '自检：全部正常';
+  box.appendChild(head);
+
+  const list = document.createElement('div');
+  list.className = 'diagbox';
+  rows.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'drow';
+    const mk = document.createElement('span');
+    mk.className = r.good ? 'dok' : 'dbad';
+    mk.textContent = r.good ? '✓' : '✕';
+    const name = document.createElement('b');
+    name.textContent = r.name;
+    const val = document.createElement('em');
+    val.textContent = r.value;
+    row.append(mk, name, val);
+    list.appendChild(row);
+  });
+  box.appendChild(list);
+
+  if (bad) {
+    const tip = document.createElement('div');
+    tip.className = 'qerr';
+    tip.style.marginTop = '9px';
+    tip.textContent = bad === rows.length ? '整条链路都不通，先确认扩展本身已经启用。' : '按第一项标红的提示处理就行。';
+    box.appendChild(tip);
+  }
 }
 
 function renderQSentence(res, tokens) {
@@ -551,7 +652,7 @@ async function lookupFromChip(word) {
 
   const res = await askBackground({ type: 'lookup', word });
   if (!res || !res.ok) {
-    renderQError(word, res && res.error);
+    renderQError(word, res && res.error, res && res.detail);
     return;
   }
   renderQResult(res);
@@ -562,7 +663,10 @@ async function doLookup() {
   const raw = (input.value || '').trim();
   if (!raw) { input.focus(); return; }
 
-  const text = raw.replace(/\s+/g, ' ').trim();
+  const text = raw
+    .replace(/[\u200b-\u200f\u2028\u2029\ufeff\u00a0]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   const toJa = settings.direction === 'zh2ja';
   const box = $('qres');
   box.hidden = false;
@@ -578,7 +682,7 @@ async function doLookup() {
   if (toJa) {
     const res = await askBackground({ type: 'translate', text, direction: 'zh2ja' });
     $('qbtn').disabled = false;
-    if (!res) { renderQError(text, 'network'); return; }
+    if (!res || !res.ok) { renderQError(text, res && res.error, res && res.detail); return; }
     renderQZhJa(res);
     return;
   }
@@ -589,7 +693,7 @@ async function doLookup() {
   if (sentence) {
     const res = await askBackground({ type: 'translate', text, direction: 'ja2zh' });
     $('qbtn').disabled = false;
-    if (!res) { renderQError(text, 'network'); return; }
+    if (!res || !res.ok) { renderQError(text, res && res.error, res && res.detail); return; }
     renderQSentence(res, tokens);
     return;
   }
@@ -597,7 +701,7 @@ async function doLookup() {
   const res = await askBackground({ type: 'lookup', word: text.replace(/\s/g, '') });
   $('qbtn').disabled = false;
   if (!res || !res.ok) {
-    renderQError(text, res && res.error);
+    renderQError(text, res && res.error, res && res.detail);
     return;
   }
   renderQResult(res);
@@ -650,6 +754,8 @@ async function checkPageSupport() {
 
 function bind() {
   $('qbtn').addEventListener('click', doLookup);
+  const diagBtn = $('diag');
+  if (diagBtn) diagBtn.addEventListener('click', runDiag);
   $('q').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -726,5 +832,10 @@ function bind() {
   if (demo && q) {
     q.value = demo === '1' ? '懐かしい' : demo;
     setTimeout(doLookup, 120);
+  }
+
+  // 预览用：?diag=1 直接跑一次自检
+  if (new URLSearchParams(location.search).get('diag') === '1') {
+    setTimeout(runDiag, 120);
   }
 })();

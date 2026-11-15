@@ -296,6 +296,27 @@
       line-height: 1.75;
     }
     .empty strong { display: block; font-family: var(--serif); font-size: 15px; color: var(--ink); margin-bottom: 5px; font-weight: 500; }
+    .empty .empty-tip {
+      margin-top: 9px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--line);
+      font-size: 11.5px;
+      color: var(--dim);
+      opacity: .85;
+    }
+    .empty .empty-time { font-size: 11px; color: var(--dim); opacity: .7; }
+    .empty button.retry {
+      margin-top: 10px;
+      padding: 6px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--card);
+      color: var(--accent);
+      font-family: var(--sans);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .empty button.retry:hover { border-color: var(--accent); background: var(--accent-soft); }
 
     .card::-webkit-scrollbar { width: 8px; }
     .card::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; border: 2px solid var(--card); }
@@ -700,13 +721,43 @@
     reveal(anchorRect);
   }
 
-  function renderEmpty(text, anchorRect, reason) {
+  /* 查不到分三种情况，提示不能混：
+       network —— 两个接口都没响应，是网络问题
+       off     —— 消息没送到后台（service worker 没起来 / 页面是重载扩展前打开的）
+       notfound—— 接口正常返回，确实没这个词
+     以前后两种共用「可能是专有名词」，排查时会被带到错的方向。 */
+  function renderEmpty(text, anchorRect, reason, detail) {
     newCard();
+    const off = reason === 'runtime' || reason === 'closed' || reason === 'empty';
+
     const box = el('div', 'empty');
     box.appendChild(el('strong', null, '没有查到「' + text + '」'));
     box.appendChild(document.createTextNode(
-      reason === 'network' ? '网络查询失败，检查一下网络再试试。' : '可能是专有名词，或换选一个更短的词试试。'
+      reason === 'network' ? '查询接口没有响应。'
+        : off ? '扩展后台没有响应，查询根本没发出去。'
+        : '可能是专有名词，或换选一个更短的词试试。'
     ));
+
+    if (off) {
+      const tip = el('div', 'empty-tip');
+      tip.textContent = '先刷新这个页面；还不行就到 chrome://extensions 点扩展的刷新按钮。扩展重载后，旧页面里的脚本会失联。';
+      box.appendChild(tip);
+    } else if (reason === 'network') {
+      const tip = el('div', 'empty-tip');
+      tip.textContent = '本地词库里的词仍然离线可用。面板里点「自检」能看到两个接口各自的返回。';
+      box.appendChild(tip);
+      if (detail) {
+        const code = el('div', 'empty-time');
+        code.textContent = '返回：' + detail;
+        box.appendChild(code);
+      }
+    }
+
+    const retry = el('button', 'retry', '再查一次');
+    retry.type = 'button';
+    retry.addEventListener('click', () => requestWord(text, anchorRect));
+    box.appendChild(retry);
+
     card.appendChild(box);
     reveal(anchorRect);
   }
@@ -716,10 +767,19 @@
   async function requestWord(word, anchorRect) {
     const seq = ++reqSeq;
     renderLoading(anchorRect);
-    const res = await ask({ type: 'lookup', word });
+
+    let res = await ask({ type: 'lookup', word });
+    // 后台被回收后，冷启动期间的第一条消息容易丢，隔一下再试一次
+    if (res && !res.ok && (res.error === 'runtime' || res.error === 'closed' || res.error === 'empty')) {
+      await new Promise(r => setTimeout(r, 400));
+      if (seq !== reqSeq) return;
+      const again = await ask({ type: 'lookup', word });
+      if (again && again.ok) res = again;
+    }
+
     if (seq !== reqSeq) return;
     if (!res || !res.ok) {
-      renderEmpty(word, anchorRect, res && res.error);
+      renderEmpty(word, anchorRect, res && res.error, res && res.detail);
       return;
     }
     renderWord(res, anchorRect);
@@ -738,7 +798,11 @@
   }
 
   function handleSelection(sel, anchorRect) {
-    let text = sel.toString().trim().replace(/\s+/g, ' ');
+    // 零宽字符与不换行空格常见于 PDF / 排版网站，留着会让分词和查询都失效
+    let text = sel.toString()
+      .replace(/[\u200b-\u200f\u2028\u2029\ufeff\u00a0]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (!text) return;
     if (!JA_RE.test(text)) return;
 

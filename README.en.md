@@ -23,7 +23,7 @@ Most selection tools on the browser stop at the lookup: a definition appears, th
 select ─▶ card (reading / POS / gloss / sentence translation) ─▶ vocabulary list ─▶ study (flip cards · three quiz types)
 ```
 
-The engineering stays deliberately plain: Manifest V3 and vanilla JavaScript, no framework, no build step, no runtime dependencies — clone it and load it. A local 305-word dictionary answers common words with zero latency, and both fallback lookups (Jisho, MyMemory) work without an API key.
+The engineering stays deliberately plain: Manifest V3 and vanilla JavaScript, no framework, no build step, no runtime dependencies — clone it and load it. A local 564-word dictionary answers common words with zero latency, and both fallback lookups (Jisho, MyMemory) work without an API key.
 
 ![Lookup card](docs/screenshot-card.png)
 
@@ -41,6 +41,7 @@ The engineering stays deliberately plain: Manifest V3 and vanilla JavaScript, no
 - [Data model](#data-model)
 - [Project layout](#project-layout)
 - [Local development](#local-development)
+- [Troubleshooting](#troubleshooting)
 - [Known limitations](#known-limitations)
 - [Privacy](#privacy)
 - [Roadmap](#roadmap)
@@ -198,7 +199,7 @@ A lookup falls back through three stages — local dictionary, dictionary API, t
 ```
 selection
   │  normalize: collapse whitespace, cap length
-  ├─▶ local dictionary (305 entries, hash index)    hit ─▶ card renders, no network
+  ├─▶ local dictionary (564 entries, hash index)    hit ─▶ card renders, no network
   │
   └─▶ miss
         ├─ Jisho (JMdict)   → reading / POS / JLPT level / English gloss
@@ -273,7 +274,7 @@ The exported vocabulary file shares its format with the main app's `词库.json`
 ├── manifest.json       Extension manifest (MV3)
 ├── background.js       Lookup layer: local dictionary → Jisho → MyMemory, with cache and deinflection
 ├── content.js          Page layer: selection detection, card UI (Shadow DOM)
-├── dict-local.js       Offline dictionary (305 words)
+├── dict-local.js       Offline dictionary (564 words)
 ├── popup.html/css/js   Toolbar popup: lookup box, settings, vocabulary list, study entry point
 ├── study.html/css/js   Study page: deck list / word list / flashcards / three quiz types / summary
 ├── deck-n3.js          Bundled N3 deck (220 words, generated from deck-n3.json)
@@ -309,10 +310,30 @@ Without `chrome.storage` these pages fall back to in-memory sample data, which i
 
 Self-check when touching the data model: new `jp_vocab` fields must be reflected in `content.js` (saving) and `popup.js` (list / export); `jp_study_stats` is read and written only by `study.js`.
 
+## Troubleshooting
+
+The **自检** (self-check) link at the bottom right of the popup runs four checks in sequence and prints each result inline:
+
+![Self-check](docs/screenshot-diag.png)
+
+| Check | Healthy output | When it fails |
+| --- | --- | --- |
+| Background | `正常 · v1.5.1 · 本地词库 564 词` | `没有响应` means the service worker never started — hit the reload button on the extension card at `chrome://extensions` |
+| Current page | `划词脚本在运行` | `没有划词脚本` means the page yields no selection: Chrome's built-in PDF viewer, `chrome://` pages, or a tab opened before the extension was installed |
+| Jisho | `HTTP 200 · N 条` | A 403 usually means the network rewrote the User-Agent or an intermediary blocked the request; retry on another network |
+| MyMemory | `HTTP 200 · <translation>` | `MYMEMORY WARNING` means the anonymous quota is exhausted; Chinese glosses degrade to English only |
+
+The card distinguishes its three failure modes as well — *no such word*, *no API response*, *no background response* — rather than collapsing them into a single "not found" message.
+
+Two things worth knowing:
+
+- **Refresh the tab after reloading the extension.** Scripts in an already-open page lose their channel to the new background process, and every lookup fails until the tab is refreshed. The card says `扩展后台没有响应` in that case.
+- **The offline dictionary covers 564 words.** Everything else depends on the network, so offline use is limited to those entries.
+
 ## Known limitations
 
 - **Coverage**: personal names, proper nouns and invented fictional words are mostly missing — try a shorter query
-- **Network**: Jisho and MyMemory are hosted outside mainland China and are occasionally slow or unreachable from some networks; the local 305-word dictionary keeps working offline
+- **Network**: Jisho and MyMemory are hosted outside mainland China and are occasionally slow or unreachable from some networks; the local 564-word dictionary keeps working offline
 - **MyMemory rate limit**: roughly 5000 words per day anonymously, beyond which responses degrade to English glosses only
 - **Pages with no selectable text** (the extension cannot read a selection — a platform constraint, not an implementation defect): Chrome's built-in PDF viewer, canvas-rendered pages (Google Docs, image-based sites), Japanese inside images (needs OCR), text with `user-select: none`, and `chrome://` pages
 - **Machine translation quality**: long Chinese/Japanese sentences go through MyMemory, and complex written Japanese comes out stiff; per-word glosses are far more reliable than full-sentence output

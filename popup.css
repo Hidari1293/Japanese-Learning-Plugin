@@ -599,3 +599,49 @@ kbd {
   display: flex;
   gap: 6px;
 }
+
+/* ---------------- 自检 ---------------- */
+
+.foot .diag {
+  border: 0;
+  background: none;
+  padding: 0 2px;
+  font-family: var(--sans);
+  font-size: 10px;
+  color: var(--dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.foot .diag:hover { color: var(--accent); }
+
+.dtitle {
+  font-size: 10.5px;
+  letter-spacing: .02em;
+  color: var(--dim);
+  margin-bottom: 7px;
+}
+
+.diagbox { display: grid; gap: 6px; }
+
+.drow {
+  display: grid;
+  grid-template-columns: 12px minmax(66px, auto) 1fr;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.drow b {
+  font-family: var(--sans);
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.drow em {
+  font-style: normal;
+  color: var(--dim);
+  word-break: break-word;
+}
+.dok { color: var(--accent); font-weight: 700; }
+.dbad { color: var(--bad); font-weight: 700; }

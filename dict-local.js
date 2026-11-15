@@ -1,4 +1,4 @@
-/* 本地离线词库：来源于本项目 N3 词汇卡片 + 用户词库，共 305 条。
+/* 本地离线词库：来源于本项目 N3 词汇卡片 + 用户词库，共 564 条。
    由 generate 脚本自动生成，可安全忽略。 */
 self.__JP_LOCAL_DICT__ = (function () {
   const d = Object.create(null);
