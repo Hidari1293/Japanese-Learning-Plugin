@@ -7,7 +7,7 @@
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-2f6b52)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-2f6b52)
 ![Build](https://img.shields.io/badge/build-none-2f6b52)
-![License](https://img.shields.io/badge/license-MIT-2f6b52)
+![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-8b3a3a)
 
 ## 项目概要
 
@@ -354,6 +354,12 @@ preview/demo.html?mode=sent&theme=light   # 划词卡片
 
 词典数据来自 [Jisho](https://jisho.org)（JMdict），翻译来自 [MyMemory](https://mymemory.translated.net)。N3 词库整理自本人的复习笔记。
 
-## License
+## 许可
 
-MIT
+本项目为专有软件，著作权归作者所有。源码公开仅用于查看与学习参考。
+
+**允许**：下载并在个人、非商业场景下使用未经修改的原始版本。
+
+**未经版权持有人事先书面许可，禁止**：修改或基于本软件创作衍生作品；复制、再分发或重新发布源码及其实质性部分；商业使用、销售或商业性再分发；分发修改版或衍生版本。
+
+未明确授予的权利均由版权持有人保留。完整条款见 [LICENSE](LICENSE)。

@@ -7,7 +7,7 @@
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-2f6b52)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-2f6b52)
 ![Build](https://img.shields.io/badge/build-none-2f6b52)
-![License](https://img.shields.io/badge/license-MIT-2f6b52)
+![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-8b3a3a)
 
 ## Overview
 
@@ -357,4 +357,10 @@ Dictionary data from [Jisho](https://jisho.org) (JMdict); translations from [MyM
 
 ## License
 
-MIT
+This project is proprietary software. Copyright is held by the author, and all rights are reserved. The source code is published for viewing and educational reference only.
+
+**Permitted**: downloading and using the original, unmodified version for personal, non-commercial purposes.
+
+**Prohibited without prior written permission from the copyright holder**: modifying the software or creating derivative works based on it; copying, redistributing or republishing the source code or substantial portions of it; commercial use, sale or commercial redistribution; distributing modified or derivative versions.
+
+All rights not expressly granted are reserved by the copyright holder. See [LICENSE](LICENSE) for the full terms.
